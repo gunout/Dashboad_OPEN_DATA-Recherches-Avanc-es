@@ -719,19 +719,16 @@ def afficher_resultat_dataset(dataset, i, current_page, client):
         col_act1, col_act2, col_act3, col_act4 = st.columns([1, 1, 1, 1])
         
         with col_act1:
-            # CORRECTION: Clé unique avec ID du dataset
             if st.button(f"📈 Analyser", key=f"analyze_{dataset_id}", use_container_width=True):
                 st.session_state.dataset_analyse = dataset
                 st.rerun()
         
         with col_act2:
-            # CORRECTION: Clé unique avec ID du dataset
             if st.button(f"📁 Détails", key=f"details_{dataset_id}", use_container_width=True):
                 st.session_state.dataset_details = dataset
                 st.rerun()
         
         with col_act3:
-            # CORRECTION: Clé unique avec ID du dataset
             if st.button(f"📥 Métadonnées", key=f"download_{dataset_id}", use_container_width=True):
                 telecharger_dataset(dataset, client)
         
@@ -756,7 +753,6 @@ def afficher_pagination_avancee(page_actuelle, total_pages, position="top"):
     
     with col_pag1:
         if page_actuelle > 1:
-            # CORRECTION: Clé unique avec numéro de page et position
             if st.button("⬅️ Précédent", key=f"prev_{page_actuelle}_{position}", use_container_width=True):
                 st.session_state.recherche_page = page_actuelle - 1
                 st.rerun()
@@ -764,14 +760,12 @@ def afficher_pagination_avancee(page_actuelle, total_pages, position="top"):
     with col_pag2:
         pages_rapides = [1, max(1, page_actuelle-2), page_actuelle, min(total_pages, page_actuelle+2), total_pages]
         pages_rapides = sorted(set(pages_rapides))
-        # CORRECTION: Clé unique avec numéro de page et position
         page_rapide = st.selectbox("Aller à la page:", options=pages_rapides, index=pages_rapides.index(page_actuelle), key=f"page_select_{page_actuelle}_{position}")
         if page_rapide != page_actuelle:
             st.session_state.recherche_page = page_rapide
             st.rerun()
     
     with col_pag3:
-        # CORRECTION: Clé unique avec numéro de page et position
         nouvelle_page = st.number_input(
             "Page spécifique:",
             min_value=1,
@@ -782,14 +776,12 @@ def afficher_pagination_avancee(page_actuelle, total_pages, position="top"):
         )
     
     with col_pag4:
-        # CORRECTION: Clé unique avec numéro de page et position
         if st.button("🔍 Aller", key=f"go_{page_actuelle}_{position}", use_container_width=True) and nouvelle_page != page_actuelle:
             st.session_state.recherche_page = nouvelle_page
             st.rerun()
     
     with col_pag5:
         if page_actuelle < total_pages:
-            # CORRECTION: Clé unique avec numéro de page et position
             if st.button("Suivant ➡️", key=f"next_{page_actuelle}_{position}", use_container_width=True):
                 st.session_state.recherche_page = page_actuelle + 1
                 st.rerun()
@@ -817,11 +809,10 @@ def creer_graphique_organisations(stats):
         color_continuous_scale=['#0055A4', '#EF4135']
     )
     
-    # CORRECTION DES STYLES POUR LA LISIBILITÉ
     fig.update_layout(
         plot_bgcolor='white',
         paper_bgcolor='white',
-        font=dict(color='#000000', size=12),  # Texte en noir pour meilleure lisibilité
+        font=dict(color='#000000', size=12),
         title_font=dict(color='#0055A4', size=16),
         xaxis=dict(
             title_font=dict(color='#000000'),
@@ -859,11 +850,10 @@ def creer_graphique_formats(stats):
         color_discrete_sequence=['#0055A4', '#1f77b4', '#EF4135', '#FF6B6B', '#4CAF50', '#FF9800']
     )
     
-    # CORRECTION DES STYLES POUR LA LISIBILITÉ
     fig.update_layout(
         plot_bgcolor='white',
         paper_bgcolor='white',
-        font=dict(color='#000000', size=12),  # Texte en noir pour meilleure lisibilité
+        font=dict(color='#000000', size=12),
         title_font=dict(color='#0055A4', size=16),
         legend=dict(
             font=dict(color='#000000'),
@@ -873,7 +863,6 @@ def creer_graphique_formats(stats):
         )
     )
     
-    # Améliorer la lisibilité des labels
     fig.update_traces(
         textfont=dict(color='#000000', size=10),
         textposition='inside'
@@ -882,8 +871,9 @@ def creer_graphique_formats(stats):
     return fig
 
 def creer_graphique_temporel(stats):
-    """Crée le graphique temporel avec styles corrigés"""
-    dates_simulees = pd.date_range(end=datetime.now(), periods=12, freq='M')
+    """Crée le graphique temporel avec styles corrigés - Version corrigée"""
+    # Utiliser 'ME' (Month End) au lieu de 'M' qui est déprécié
+    dates_simulees = pd.date_range(end=datetime.now(), periods=12, freq='ME')
     creations_simulees = np.random.poisson(stats['sample_size'] // 12, 12) * np.linspace(0.8, 1.2, 12)
     
     fig = px.line(
@@ -895,11 +885,10 @@ def creer_graphique_temporel(stats):
     
     fig.update_traces(line=dict(color='#EF4135', width=3))
     
-    # CORRECTION DES STYLES POUR LA LISIBILITÉ
     fig.update_layout(
         plot_bgcolor='white',
         paper_bgcolor='white',
-        font=dict(color='#000000', size=12),  # Texte en noir pour meilleure lisibilité
+        font=dict(color='#000000', size=12),
         title_font=dict(color='#0055A4', size=16),
         xaxis=dict(
             title_font=dict(color='#000000'),
@@ -950,14 +939,12 @@ def afficher_onglet_recherche_avancee(client, filtres):
     col_btn1, col_btn2, col_btn3, col_info = st.columns([2, 1, 1, 2])
     
     with col_btn1:
-        # CORRECTION: Clé unique pour le bouton de recherche
         if st.button("🚀 Lancer la Recherche Avancée", key="search_launch", type="primary", use_container_width=True):
             st.session_state.recherche_query = query_final
             st.session_state.recherche_page = 1
             st.rerun()
     
     with col_btn2:
-        # CORRECTION: Clé unique pour le bouton reset
         if st.button("🔄 Réinitialiser", key="search_reset", use_container_width=True):
             for key in ['recherche_query', 'recherche_resultats', 'recherche_page']:
                 if key in st.session_state:
@@ -965,7 +952,6 @@ def afficher_onglet_recherche_avancee(client, filtres):
             st.rerun()
     
     with col_btn3:
-        # CORRECTION: Clé unique pour le bouton export
         if st.button("💾 Exporter Résultats", key="search_export", use_container_width=True):
             if 'recherche_resultats' in st.session_state:
                 exporter_resultats(st.session_state.recherche_resultats)
@@ -1017,7 +1003,7 @@ def afficher_resultats_avances(resultats, client, current_page, page_size):
     if total_results > 1000:
         st.info(f"🎯 **Conseil:** Utilisez les filtres avancés pour affiner votre recherche parmi les {total_results:,} résultats")
     
-    # Pagination en haut - CORRECTION: Ajout du paramètre position
+    # Pagination en haut
     if total_pages > 1:
         afficher_pagination_avancee(current_page, total_pages, "top")
     
@@ -1054,7 +1040,7 @@ def afficher_resultats_avances(resultats, client, current_page, page_size):
     for i, dataset in enumerate(datasets):
         afficher_resultat_dataset(dataset, i, current_page, client)
     
-    # Pagination en bas - CORRECTION: Ajout du paramètre position
+    # Pagination en bas
     if total_pages > 1:
         afficher_pagination_avancee(current_page, total_pages, "bottom")
 
@@ -1079,7 +1065,6 @@ def afficher_onglet_analytics_globaux(client):
     
     if not datasets_populaires:
         st.warning("⚠️ Données limitées disponibles pour l'analyse")
-        # Créer des données de démonstration pour les datasets populaires
         datasets_populaires = []
     
     # KPI Principaux
@@ -1102,7 +1087,6 @@ def afficher_onglet_analytics_globaux(client):
     col_chart1, col_chart2 = st.columns(2)
     
     with col_chart1:
-        # Top organisations - UTILISATION DE LA FONCTION CORRIGÉE
         fig_org = creer_graphique_organisations(stats)
         if fig_org:
             st.plotly_chart(fig_org, use_container_width=True)
@@ -1110,14 +1094,13 @@ def afficher_onglet_analytics_globaux(client):
             st.info("📊 Aucune donnée d'organisation disponible")
     
     with col_chart2:
-        # Répartition des formats - UTILISATION DE LA FONCTION CORRIGÉE
         fig_format = creer_graphique_formats(stats)
         if fig_format:
             st.plotly_chart(fig_format, use_container_width=True)
         else:
             st.info("📁 Aucune donnée de format disponible")
     
-    # Analyse temporelle - UTILISATION DE LA FONCTION CORRIGÉE
+    # Analyse temporelle
     st.subheader("📅 Analyse Temporelle")
     fig_temporel = creer_graphique_temporel(stats)
     if fig_temporel:
@@ -1206,7 +1189,6 @@ def afficher_onglet_top_datasets(client):
                     st.success("🆕 Dataset récent (moins de 30 jours)")
             
             with col2:
-                # CORRECTION: Clé unique avec ID du dataset
                 if st.button(f"🔍 Analyser", key=f"pop_analyze_{dataset_id}"):
                     st.session_state.dataset_analyse = dataset
                     st.rerun()
@@ -1214,8 +1196,6 @@ def afficher_onglet_top_datasets(client):
                 dataset_url = f"https://www.data.gouv.fr/fr/datasets/{dataset.get('id', '')}/"
                 st.markdown(f'<a href="{dataset_url}" target="_blank"><button style="background: linear-gradient(135deg, #0055A4 0%, #1f77b4 100%); color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; width: 100%; font-weight: bold;">🌐 Ouvrir sur data.gouv.fr</button></a>', unsafe_allow_html=True)
                 
-                # Bouton de téléchargement rapide
-                # CORRECTION: Clé unique avec ID du dataset
                 if st.button(f"📥 Métadonnées", key=f"pop_dl_{dataset_id}"):
                     telecharger_dataset(dataset, client)
 
