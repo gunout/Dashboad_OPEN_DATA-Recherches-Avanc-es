@@ -353,17 +353,38 @@ class DataGouvAPIClient:
         if organization and organization != "Toutes les organisations":
             params['organization'] = organization
         
-        # Construction des filtres complexes
+        # Construction des filtres - VERSION CORRIGÉE
+        # Éviter la combinaison AND trop restrictive de tags
         filters = []
+        
         if format_type and format_type != "Tous les formats":
             filters.append(f'format:{format_type}')
         
-        if tags:
-            for tag in tags:
-                filters.append(f'tag:{tag}')
+        # CORRECTION IMPORTANTE : Limiter le nombre de tags pour éviter AND trop restrictif
+        # L'API data.gouv.fr combine les tags avec une logique ET
+        # Trop de tags rendent la recherche impossible
+        if tags and len(tags) > 0:
+            # Prendre au maximum 2 tags pour une recherche efficace
+            # Sinon, utiliser la recherche textuelle à la place
+            if len(tags) <= 2:
+                for tag in tags:
+                    filters.append(f'tag:{tag}')
+            else:
+                # Si trop de tags, on les convertit en recherche textuelle
+                st.info(f"💡 {len(tags)} tags sélectionnés. Conversion en recherche textuelle pour de meilleurs résultats.")
+                # Ajouter les tags comme mots-clés dans la recherche textuelle
+                tags_text = ' '.join(tags)
+                if query:
+                    query = f"{query} {tags_text}"
+                else:
+                    query = tags_text
         
         if filters:
             params['q'] = f"{query} {' '.join(filters)}" if query else ' '.join(filters)
+        
+        # Supprimer le paramètre q s'il est vide
+        if 'q' in params and (not params['q'] or params['q'].strip() == ''):
+            del params['q']
         
         try:
             response = _self.session.get(DATASETS_URL, params=params, timeout=60)
@@ -645,15 +666,22 @@ def afficher_sidebar(client):
         formats_fichiers = ["Tous les formats", "CSV", "XLS", "XLSX", "JSON", "PDF", "XML", "SHP", "GEOJSON"]
         format_selection = st.selectbox("Sélectionnez un format", options=formats_fichiers)
         
-        # Tags
+        # Tags - VERSION CORRIGÉE avec message d'aide
         st.subheader("🏷️ Tags Thématiques")
+        st.caption("⚠️ **Conseil:** Limitez-vous à 1-2 tags maximum. L'API combine les tags avec ET, trop de tags = aucun résultat.")
+        
         tags_populaires = st.multiselect(
-            "Sélectionnez des tags",
+            "Sélectionnez des tags (max 2 recommandés)",
             options=["économie", "finances", "budget", "entreprises", "emploi", "commerce", 
                     "innovation", "statistiques", "fiscalité", "investissement", "données ouvertes",
                     "administration", "public", "gouvernement"],
-            default=["économie"]
+            default=["économie"],
+            help="L'API data.gouv.fr combine les tags avec une logique ET. Trop de tags rendent la recherche impossible."
         )
+        
+        # Avertissement si trop de tags
+        if len(tags_populaires) > 2:
+            st.warning(f"⚠️ Vous avez sélectionné {len(tags_populaires)} tags. Pour de meilleurs résultats, limitez-vous à 1-2 tags.")
         
         # Options de recherche avancée
         st.subheader("⚙️ Options Avancées")
@@ -871,7 +899,7 @@ def creer_graphique_formats(stats):
     return fig
 
 def creer_graphique_temporel(stats):
-    """Crée le graphique temporel avec styles corrigés - Version corrigée"""
+    """Crée le graphique temporel avec styles corrigés"""
     # Utiliser 'ME' (Month End) au lieu de 'M' qui est déprécié
     dates_simulees = pd.date_range(end=datetime.now(), periods=12, freq='ME')
     creations_simulees = np.random.poisson(stats['sample_size'] // 12, 12) * np.linspace(0.8, 1.2, 12)
@@ -911,6 +939,15 @@ def afficher_onglet_recherche_avancee(client, filtres):
     """Affiche l'onglet de recherche avancée"""
     st.markdown('<h2 class="section-header">🔍 RECHERCHE AVANCÉE - 24K DATASETS</h2>', unsafe_allow_html=True)
     
+    # Afficher un rappel sur les bonnes pratiques
+    with st.expander("💡 Conseils pour une recherche efficace", expanded=False):
+        st.markdown("""
+        - **Limitez les tags** : L'API combine les tags avec une logique **ET**. Utilisez 1-2 tags maximum.
+        - **Préférez la recherche textuelle** : Pour plusieurs mots-clés, utilisez le champ "Mots-clés"
+        - **Combinez organisation + format** : Filtrez par organisation et format pour affiner sans bloquer
+        - **Commencez large** : Lancez d'abord une recherche simple, puis affinez progressivement
+        """)
+    
     # Construction de la requête avancée
     query_parts = []
     
@@ -926,9 +963,16 @@ def afficher_onglet_recherche_avancee(client, filtres):
     if filtres['format_selection'] != "Tous les formats":
         query_parts.append(f'format:{filtres["format_selection"]}')
     
+    # Gestion intelligente des tags
     if filtres['tags_populaires']:
-        for tag in filtres['tags_populaires']:
-            query_parts.append(f'tag:{tag}')
+        if len(filtres['tags_populaires']) <= 2:
+            # 1-2 tags : utilisation normale des filtres tag:
+            for tag in filtres['tags_populaires']:
+                query_parts.append(f'tag:{tag}')
+        else:
+            # Plus de 2 tags : conversion en recherche textuelle
+            st.info(f"💡 {len(filtres['tags_populaires'])} tags sélectionnés. Ils seront utilisés comme mots-clés textuels pour de meilleurs résultats.")
+            query_parts.extend(filtres['tags_populaires'])
     
     if filtres['only_recent']:
         query_parts.append('created:last-month')
@@ -999,6 +1043,23 @@ def afficher_resultats_avances(resultats, client, current_page, page_size):
             couverture = min((current_page * page_size) / total_results * 100, 100)
             st.metric("Couverture", f"{couverture:.1f}%")
     
+    # Message d'aide si aucun résultat
+    if total_results == 0:
+        st.warning("""
+        ## 🎯 Aucun dataset trouvé
+        
+        **Causes possibles:**
+        - Trop de tags sélectionnés (l'API combine les tags avec ET)
+        - Filtres trop restrictifs
+        
+        **Solutions:**
+        - ✅ Réduisez à 1-2 tags maximum
+        - ✅ Utilisez le champ "Mots-clés" pour les recherches larges
+        - ✅ Désactivez certains filtres (organisation, format)
+        - ✅ Consultez les datasets populaires dans l'onglet dédié
+        """)
+        return
+    
     # Indicateur de performance
     if total_results > 1000:
         st.info(f"🎯 **Conseil:** Utilisez les filtres avancés pour affiner votre recherche parmi les {total_results:,} résultats")
@@ -1006,21 +1067,6 @@ def afficher_resultats_avances(resultats, client, current_page, page_size):
     # Pagination en haut
     if total_pages > 1:
         afficher_pagination_avancee(current_page, total_pages, "top")
-    
-    # Affichage des résultats
-    if not datasets:
-        st.warning("""
-        ## 🎯 Aucun dataset trouvé
-        
-        **Suggestions pour améliorer votre recherche parmi 24K datasets:**
-        
-        - ✅ Utilisez les thèmes prédéfinis pour cibler votre recherche
-        - ✅ Combinez plusieurs filtres (organisation + format + tags)
-        - ✅ Essayez des synonymes ou termes plus génériques
-        - ✅ Consultez les datasets populaires dans l'onglet dédié
-        - ✅ Réduisez le nombre de filtres si trop restrictifs
-        """)
-        return
     
     # Statistiques rapides sur les résultats
     if datasets:
@@ -1274,14 +1320,22 @@ def afficher_guide_recherche_avancee():
     1. **🎯 Utilisez les thèmes prédéfinis** - Catégories optimisées pour data.gouv.fr
     2. **🏢 Filtrez par organisation** - INSEE, Ministères, Collectivités...
     3. **📁 Spécifiez le format** - CSV, Excel, JSON, Géodonnées...
-    4. **🏷️ Combinez les tags** - Économie + Finances + Statistiques
+    4. **🏷️ Limitez les tags à 1-2 maximum** - L'API combine les tags avec **ET**
     
-    ### 💡 Exemples de Recherches Avancées :
+    ### ⚠️ Important sur les Tags :
     
-    - **`économie organization:"INSEE" format:CSV`** - Données économiques INSEE en CSV
-    - **`budget finances tag:public`** - Budgets et finances publiques
-    - **`entreprises emploi`** - Données sur entreprises et emploi
-    - **`transport format:SHP`** - Données géospatiales transport
+    L'API data.gouv.fr utilise une **logique ET** entre les tags. 
+    - `tag:économie tag:budget` cherche des datasets qui ont **à la fois** les tags "économie" **ET** "budget"
+    - Pour chercher plusieurs thèmes, utilisez le champ **Mots-clés** plutôt que les tags
+    
+    ### 💡 Exemples de Recherches :
+    
+    | Type de recherche | À utiliser | Exemple |
+    |------------------|------------|---------|
+    | Un thème précis | Tag | `tag:économie` |
+    | Plusieurs thèmes | Mots-clés | `économie budget finances` |
+    | Données précises | Organisation + Format | `organization:"INSEE" format:CSV` |
+    | Recherche large | Texte libre | `PIB croissance inflation` |
     
     ### 🚀 Fonctionnalités Avancées :
     
@@ -1289,8 +1343,7 @@ def afficher_guide_recherche_avancee():
     - **Filtres combinés** pour une précision maximale
     - **Pagination intelligente** pour naviguer rapidement
     - **Export des résultats** en CSV
-    - **Analyse de qualité** des datasets
-    - **Téléchargement direct** des ressources
+    - **Téléchargement direct** des métadonnées
     
     ### 📊 Conseils Performance :
     
