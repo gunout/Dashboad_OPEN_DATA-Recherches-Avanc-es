@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 import time
 import warnings
-import uuid
 
 warnings.filterwarnings('ignore')
 
@@ -23,10 +22,15 @@ st.set_page_config(
 )
 
 # =============================================================================
-# STYLES CSS
+# STYLES CSS - VERSION AVEC TEXTES LISIBLES
 # =============================================================================
 st.markdown("""
 <style>
+    /* Styles généraux */
+    .stApp {
+        background-color: #f5f5f5;
+    }
+    
     .main-header {
         font-size: 2.5rem; 
         text-align: center; 
@@ -36,6 +40,7 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
+    
     .section-header {
         font-size: 1.8rem; 
         color: #0055A4; 
@@ -44,28 +49,79 @@ st.markdown("""
         padding-bottom: 0.5rem;
         font-weight: 600;
     }
-    .result-item {
+    
+    /* Style pour les résultats - TEXTES NOIRS SUR FOND BLANC */
+    .result-card {
         background: #FFFFFF;
         border: 2px solid #0055A4;
-        border-radius: 10px;
+        border-radius: 12px;
         padding: 20px;
         margin: 15px 0;
-        box-shadow: 0 4px 6px rgba(0,85,164,0.1);
-        border-top: 3px solid #EF4135;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        border-top: 4px solid #EF4135;
     }
+    
     .result-title {
-        font-size: 1.2rem;
+        font-size: 1.3rem;
         font-weight: bold;
         color: #0055A4;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
+        border-bottom: 2px solid #EF4135;
+        padding-bottom: 8px;
     }
+    
+    .result-text {
+        color: #000000;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        margin: 8px 0;
+    }
+    
+    .result-label {
+        font-weight: bold;
+        color: #0055A4;
+        margin-right: 8px;
+    }
+    
+    .result-stats {
+        background: #F0F8FF;
+        padding: 12px;
+        border-radius: 8px;
+        margin: 12px 0;
+        color: #000000;
+        border-left: 4px solid #0055A4;
+    }
+    
     .filter-section {
         background: linear-gradient(135deg, #F8F9FF 0%, #E8F4FF 100%); 
         padding: 1.5rem; 
         border-radius: 10px; 
         margin-bottom: 1rem;
         border: 2px solid #0055A4;
+        color: #000000;
     }
+    
+    /* Style pour les métriques */
+    .metric-card {
+        background: linear-gradient(135deg, #0055A4 0%, #1f77b4 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
+        color: white;
+    }
+    
+    .metric-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: white;
+    }
+    
+    .metric-label {
+        font-size: 0.9rem;
+        color: #E0E0E0;
+    }
+    
+    /* Style pour les boutons */
     .stButton > button {
         background: linear-gradient(135deg, #0055A4 0%, #1f77b4 100%);
         color: white;
@@ -73,9 +129,34 @@ st.markdown("""
         border-radius: 6px;
         font-weight: 600;
     }
+    
     .stButton > button:hover {
         background: linear-gradient(135deg, #004494 0%, #1866a3 100%);
         color: white;
+    }
+    
+    /* Style pour les expanders */
+    .streamlit-expanderHeader {
+        background-color: #F0F8FF;
+        color: #0055A4;
+        font-weight: bold;
+    }
+    
+    /* Style pour les infobox */
+    .stAlert {
+        background-color: #F0F8FF;
+        color: #000000;
+    }
+    
+    /* Style pour les textes en général */
+    p, li, div {
+        color: #000000;
+    }
+    
+    /* Style pour les dataframes */
+    .dataframe {
+        color: #000000 !important;
+        background: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -323,31 +404,45 @@ def afficher_sidebar():
     }
 
 def afficher_resultat_dataset(dataset, idx):
+    """Affiche un résultat de dataset avec des couleurs lisibles"""
     org_name = dataset.get('organization', {}).get('name', 'Inconnue')
     created_at = (dataset.get('created_at') or '')[:10]
     metrics = dataset.get('metrics', {})
     
-    with st.container():
-        st.markdown(f"""
-        <div class="result-item">
-            <div class="result-title">📊 {dataset.get('title', 'Sans titre')}</div>
-            <div><strong>🏢 Organisation:</strong> {org_name}</div>
-            <div><strong>📅 Publication:</strong> {created_at}</div>
-            <div><strong>📁 Ressources:</strong> {len(dataset.get('resources', []))} fichiers</div>
-            <div><strong>👁️ Vues:</strong> {metrics.get('views', 0):,} • 
-                 <strong>❤️ Followers:</strong> {metrics.get('followers', 0)} • 
-                 <strong>🔄 Réutilisations:</strong> {metrics.get('reuses', 0)}</div>
-            <div><strong>🏷️ Tags:</strong> {', '.join(dataset.get('tags', []))}</div>
+    # Utilisation de HTML avec des couleurs lisibles
+    st.markdown(f"""
+    <div class="result-card">
+        <div class="result-title">
+            📊 {dataset.get('title', 'Sans titre')}
         </div>
-        """, unsafe_allow_html=True)
-        
-        url = f"https://www.data.gouv.fr/fr/datasets/{dataset.get('id', '')}/"
-        st.markdown(f'<a href="{url}" target="_blank"><button style="background: #EF4135; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">🌐 Voir sur data.gouv.fr</button></a>', unsafe_allow_html=True)
-        
-        st.markdown("---")
+        <div class="result-text">
+            <span class="result-label">🏢 Organisation:</span> {org_name}
+        </div>
+        <div class="result-text">
+            <span class="result-label">📅 Publication:</span> {created_at}
+        </div>
+        <div class="result-text">
+            <span class="result-label">📁 Ressources:</span> {len(dataset.get('resources', []))} fichiers
+        </div>
+        <div class="result-stats">
+            <span class="result-label">👁️ Vues:</span> {metrics.get('views', 0):,} • 
+            <span class="result-label">❤️ Followers:</span> {metrics.get('followers', 0)} • 
+            <span class="result-label">🔄 Réutilisations:</span> {metrics.get('reuses', 0)}
+        </div>
+        <div class="result-text">
+            <span class="result-label">🏷️ Tags:</span> {', '.join(dataset.get('tags', []))}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Bouton d'action
+    url = f"https://www.data.gouv.fr/fr/datasets/{dataset.get('id', '')}/"
+    st.markdown(f'<a href="{url}" target="_blank"><button style="background: #EF4135; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 15px; font-weight: bold;">🌐 Voir sur data.gouv.fr</button></a>', unsafe_allow_html=True)
+    
+    st.markdown("---")
 
 def afficher_pagination_simple(page_actuelle, total_pages, position="top"):
-    """Pagination simple sans selectbox pour éviter les conflits de clés"""
+    """Pagination simple"""
     if total_pages <= 1:
         return
     
@@ -363,7 +458,6 @@ def afficher_pagination_simple(page_actuelle, total_pages, position="top"):
         st.write(f"📄 **Page {page_actuelle} / {total_pages}**")
     
     with col3:
-        # Navigation par numéro direct avec text_input au lieu de selectbox
         page_num = st.text_input(
             "Aller à la page",
             value="",
@@ -390,7 +484,7 @@ def afficher_onglet_recherche(client, filtres):
     st.markdown('<h2 class="section-header">🔍 RECHERCHE DE DATASETS</h2>', unsafe_allow_html=True)
     
     # Guide
-    with st.expander("💡 Conseils pour une recherche efficace", expanded=False):
+    with st.expander("💡 Conseils pour une recherche efficace"):
         st.markdown("""
         ### ✅ Requêtes recommandées :
         - `économie` - Tous les datasets économiques
@@ -403,7 +497,6 @@ def afficher_onglet_recherche(client, filtres):
         ### 💡 Astuces :
         - Utilisez 2-3 mots-clés maximum
         - Commencez simple, puis affinez
-        - Évitez les mots vides (le, la, de, et)
         """)
     
     # Construction de la requête
@@ -508,8 +601,13 @@ def afficher_onglet_analytics(client):
     fig = px.bar(org_df, x='Datasets', y='Organisation', orientation='h',
                  title="", color='Datasets',
                  color_continuous_scale=['#0055A4', '#EF4135'])
-    fig.update_layout(plot_bgcolor='white', paper_bgcolor='white', 
-                     font=dict(color='#000000'), height=400)
+    fig.update_layout(
+        plot_bgcolor='white', 
+        paper_bgcolor='white', 
+        font=dict(color='#000000', size=12),
+        title_font=dict(color='#0055A4'),
+        height=400
+    )
     st.plotly_chart(fig, use_container_width=True, key="chart_organisations")
     
     # Formats
@@ -521,8 +619,14 @@ def afficher_onglet_analytics(client):
     
     fig2 = px.pie(format_df, values='Nombre', names='Format', title="",
                   hole=0.4, color_discrete_sequence=['#0055A4', '#1f77b4', '#EF4135', '#FF6B6B'])
-    fig2.update_layout(plot_bgcolor='white', paper_bgcolor='white', 
-                       font=dict(color='#000000'), height=400)
+    fig2.update_layout(
+        plot_bgcolor='white', 
+        paper_bgcolor='white', 
+        font=dict(color='#000000', size=12),
+        title_font=dict(color='#0055A4'),
+        height=400
+    )
+    fig2.update_traces(textfont=dict(color='#000000', size=11))
     st.plotly_chart(fig2, use_container_width=True, key="chart_formats")
 
 def afficher_onglet_top_datasets(client):
@@ -543,15 +647,15 @@ def afficher_onglet_top_datasets(client):
                 org_name = dataset.get('organization', {}).get('name', 'Inconnue')
                 metrics = dataset.get('metrics', {})
                 
-                st.write(f"**Organisation:** {org_name}")
-                st.write(f"**Description:** {dataset.get('description', 'Aucune description')[:200]}...")
-                st.write(f"**👁️ Vues:** {metrics.get('views', 0):,}")
-                st.write(f"**❤️ Followers:** {metrics.get('followers', 0)}")
-                st.write(f"**🏷️ Tags:** {', '.join(dataset.get('tags', []))}")
+                st.markdown(f"**🏢 Organisation:** {org_name}")
+                st.markdown(f"**📝 Description:** {dataset.get('description', 'Aucune description')[:200]}...")
+                st.markdown(f"**👁️ Vues:** {metrics.get('views', 0):,}")
+                st.markdown(f"**❤️ Followers:** {metrics.get('followers', 0)}")
+                st.markdown(f"**🏷️ Tags:** {', '.join(dataset.get('tags', []))}")
             
             with col2:
                 url = f"https://www.data.gouv.fr/fr/datasets/{dataset.get('id', '')}/"
-                st.markdown(f'<a href="{url}" target="_blank"><button style="background: #0055A4; color: white; padding: 10px; border: none; border-radius: 5px; width: 100%;">🌐 Ouvrir</button></a>', unsafe_allow_html=True)
+                st.markdown(f'<a href="{url}" target="_blank"><button style="background: #0055A4; color: white; padding: 10px; border: none; border-radius: 5px; width: 100%; cursor: pointer;">🌐 Ouvrir</button></a>', unsafe_allow_html=True)
 
 # =============================================================================
 # MAIN
