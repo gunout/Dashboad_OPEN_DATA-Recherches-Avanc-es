@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 import time
 import warnings
+import uuid
 
 warnings.filterwarnings('ignore')
 
@@ -345,40 +346,43 @@ def afficher_resultat_dataset(dataset, idx):
         
         st.markdown("---")
 
-def afficher_pagination(page_actuelle, total_pages):
-    """Pagination avec clés uniques"""
+def afficher_pagination_simple(page_actuelle, total_pages, position="top"):
+    """Pagination simple sans selectbox pour éviter les conflits de clés"""
     if total_pages <= 1:
         return
     
-    # Utiliser des colonnes différentes pour éviter les conflits
-    col1, col2, col3, col4 = st.columns([1, 2, 2, 1])
+    col1, col2, col3, col4 = st.columns([1, 3, 3, 1])
     
     with col1:
         if page_actuelle > 1:
-            if st.button("⬅️ Précédent", key=f"pagination_prev_{page_actuelle}", use_container_width=True):
+            if st.button("⬅️ Précédent", key=f"prev_{position}_{page_actuelle}", use_container_width=True):
                 st.session_state.recherche_page = page_actuelle - 1
                 st.rerun()
     
     with col2:
-        st.write(f"**Page {page_actuelle} / {total_pages}**")
+        st.write(f"📄 **Page {page_actuelle} / {total_pages}**")
     
     with col3:
-        # Utiliser selectbox au lieu de number_input pour éviter les conflits de clés
-        page_options = list(range(1, min(total_pages + 1, 21)))  # Max 20 pages pour le select
-        selected_page = st.selectbox(
-            "Aller à la page", 
-            options=page_options,
-            index=page_actuelle - 1 if page_actuelle <= len(page_options) else 0,
-            key=f"pagination_select_{page_actuelle}_{total_pages}",
+        # Navigation par numéro direct avec text_input au lieu de selectbox
+        page_num = st.text_input(
+            "Aller à la page",
+            value="",
+            placeholder=f"1-{total_pages}",
+            key=f"goto_input_{position}_{page_actuelle}_{total_pages}",
             label_visibility="collapsed"
         )
-        if selected_page != page_actuelle:
-            st.session_state.recherche_page = selected_page
-            st.rerun()
+        if page_num:
+            try:
+                num = int(page_num)
+                if 1 <= num <= total_pages and num != page_actuelle:
+                    st.session_state.recherche_page = num
+                    st.rerun()
+            except ValueError:
+                pass
     
     with col4:
         if page_actuelle < total_pages:
-            if st.button("Suivant ➡️", key=f"pagination_next_{page_actuelle}", use_container_width=True):
+            if st.button("Suivant ➡️", key=f"next_{position}_{page_actuelle}", use_container_width=True):
                 st.session_state.recherche_page = page_actuelle + 1
                 st.rerun()
 
@@ -465,7 +469,7 @@ def afficher_resultats(resultats, current_page, page_size):
     
     # Pagination en haut
     if total_pages > 1:
-        afficher_pagination(current_page, total_pages)
+        afficher_pagination_simple(current_page, total_pages, "top")
         st.markdown("---")
     
     # Résultats
@@ -475,7 +479,7 @@ def afficher_resultats(resultats, current_page, page_size):
     # Pagination en bas
     if total_pages > 1:
         st.markdown("---")
-        afficher_pagination(current_page, total_pages)
+        afficher_pagination_simple(current_page, total_pages, "bottom")
 
 def afficher_onglet_analytics(client):
     st.markdown('<h2 class="section-header">📊 ANALYTICS GLOBAUX</h2>', unsafe_allow_html=True)
