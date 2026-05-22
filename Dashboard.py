@@ -85,7 +85,7 @@ st.markdown("""
 API_BASE_URL = "https://www.data.gouv.fr/api/1"
 DATASETS_URL = f"{API_BASE_URL}/datasets/"
 
-# Données de démonstration pour le fallback
+# Données de démonstration
 DEMO_DATASETS = [
     {
         "id": "1",
@@ -170,7 +170,6 @@ class DataGouvAPIClient:
         }
         
         if query and query.strip():
-            # Nettoyer la requête - garder seulement 3 mots max
             mots = query.strip().split()[:3]
             params['q'] = ' '.join(mots)
         
@@ -284,7 +283,8 @@ def afficher_sidebar():
         recherche_texte = st.text_input(
             "🔍 Mots-clés",
             placeholder="ex: économie budget, PIB, emploi...",
-            help="2-3 mots-clés maximum"
+            help="2-3 mots-clés maximum",
+            key="search_input_main"
         )
         
         st.markdown("---")
@@ -292,25 +292,25 @@ def afficher_sidebar():
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("📊 Économie", use_container_width=True):
+            if st.button("📊 Économie", key="btn_economie", use_container_width=True):
                 st.session_state.recherche_query = "économie"
                 st.session_state.recherche_page = 1
                 st.rerun()
-            if st.button("💰 Budget", use_container_width=True):
+            if st.button("💰 Budget", key="btn_budget", use_container_width=True):
                 st.session_state.recherche_query = "budget"
                 st.session_state.recherche_page = 1
                 st.rerun()
         with col2:
-            if st.button("🏢 Entreprises", use_container_width=True):
+            if st.button("🏢 Entreprises", key="btn_entreprises", use_container_width=True):
                 st.session_state.recherche_query = "entreprises"
                 st.session_state.recherche_page = 1
                 st.rerun()
-            if st.button("👥 Emploi", use_container_width=True):
+            if st.button("👥 Emploi", key="btn_emploi", use_container_width=True):
                 st.session_state.recherche_query = "emploi"
                 st.session_state.recherche_page = 1
                 st.rerun()
         
-        results_per_page = st.slider("Résultats par page", 10, 50, 20)
+        results_per_page = st.slider("Résultats par page", 10, 50, 20, key="slider_results")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -325,7 +325,6 @@ def afficher_resultat_dataset(dataset, idx):
     org_name = dataset.get('organization', {}).get('name', 'Inconnue')
     created_at = (dataset.get('created_at') or '')[:10]
     metrics = dataset.get('metrics', {})
-    is_demo = dataset.get('_is_demo', False)
     
     with st.container():
         st.markdown(f"""
@@ -347,31 +346,39 @@ def afficher_resultat_dataset(dataset, idx):
         st.markdown("---")
 
 def afficher_pagination(page_actuelle, total_pages):
+    """Pagination avec clés uniques"""
     if total_pages <= 1:
         return
     
+    # Utiliser des colonnes différentes pour éviter les conflits
     col1, col2, col3, col4 = st.columns([1, 2, 2, 1])
     
     with col1:
         if page_actuelle > 1:
-            if st.button("⬅️ Précédent", key=f"prev_{page_actuelle}"):
+            if st.button("⬅️ Précédent", key=f"pagination_prev_{page_actuelle}", use_container_width=True):
                 st.session_state.recherche_page = page_actuelle - 1
                 st.rerun()
     
     with col2:
-        st.write(f"Page {page_actuelle} / {total_pages}")
+        st.write(f"**Page {page_actuelle} / {total_pages}**")
     
     with col3:
-        new_page = st.number_input("Aller à", min_value=1, max_value=total_pages, 
-                                   value=page_actuelle, key=f"goto_{page_actuelle}", 
-                                   label_visibility="collapsed")
-        if new_page != page_actuelle:
-            st.session_state.recherche_page = new_page
+        # Utiliser selectbox au lieu de number_input pour éviter les conflits de clés
+        page_options = list(range(1, min(total_pages + 1, 21)))  # Max 20 pages pour le select
+        selected_page = st.selectbox(
+            "Aller à la page", 
+            options=page_options,
+            index=page_actuelle - 1 if page_actuelle <= len(page_options) else 0,
+            key=f"pagination_select_{page_actuelle}_{total_pages}",
+            label_visibility="collapsed"
+        )
+        if selected_page != page_actuelle:
+            st.session_state.recherche_page = selected_page
             st.rerun()
     
     with col4:
         if page_actuelle < total_pages:
-            if st.button("Suivant ➡️", key=f"next_{page_actuelle}"):
+            if st.button("Suivant ➡️", key=f"pagination_next_{page_actuelle}", use_container_width=True):
                 st.session_state.recherche_page = page_actuelle + 1
                 st.rerun()
 
@@ -404,7 +411,7 @@ def afficher_onglet_recherche(client, filtres):
     # Bouton de recherche
     col_btn1, col_btn2 = st.columns([1, 4])
     with col_btn1:
-        if st.button("🔍 RECHERCHER", type="primary", use_container_width=True):
+        if st.button("🔍 RECHERCHER", key="btn_search_main", type="primary", use_container_width=True):
             if query:
                 st.session_state.recherche_query = query
                 st.session_state.recherche_page = 1
@@ -445,7 +452,7 @@ def afficher_resultats(resultats, current_page, page_size):
             st.warning("❌ **Aucun résultat** - Essayez avec des mots-clés plus génériques")
     
     with col2:
-        st.metric("Page", f"{current_page}/{total_pages}")
+        st.metric("📄 Page", f"{current_page}/{total_pages}")
     
     if total_results == 0:
         st.info("""
@@ -456,16 +463,18 @@ def afficher_resultats(resultats, current_page, page_size):
         """)
         return
     
-    # Pagination
+    # Pagination en haut
     if total_pages > 1:
         afficher_pagination(current_page, total_pages)
+        st.markdown("---")
     
     # Résultats
     for idx, dataset in enumerate(datasets):
         afficher_resultat_dataset(dataset, idx)
     
-    # Pagination bas
+    # Pagination en bas
     if total_pages > 1:
+        st.markdown("---")
         afficher_pagination(current_page, total_pages)
 
 def afficher_onglet_analytics(client):
@@ -497,7 +506,7 @@ def afficher_onglet_analytics(client):
                  color_continuous_scale=['#0055A4', '#EF4135'])
     fig.update_layout(plot_bgcolor='white', paper_bgcolor='white', 
                      font=dict(color='#000000'), height=400)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key="chart_organisations")
     
     # Formats
     st.subheader("📁 Formats de fichiers")
@@ -510,7 +519,7 @@ def afficher_onglet_analytics(client):
                   hole=0.4, color_discrete_sequence=['#0055A4', '#1f77b4', '#EF4135', '#FF6B6B'])
     fig2.update_layout(plot_bgcolor='white', paper_bgcolor='white', 
                        font=dict(color='#000000'), height=400)
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig2, use_container_width=True, key="chart_formats")
 
 def afficher_onglet_top_datasets(client):
     st.markdown('<h2 class="section-header">⭐ TOP DATASETS POPULAIRES</h2>', unsafe_allow_html=True)
